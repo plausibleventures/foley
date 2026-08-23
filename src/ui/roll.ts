@@ -120,7 +120,7 @@ export function startRoll(canvas: HTMLCanvasElement, readout: HTMLElement): Roll
     context.stroke();
     context.fillStyle = muted;
     context.textAlign = 'left';
-    if (width - nowX > 90) context.fillText('scheduled ahead', nowX + 6, height - 8);
+    if (width - nowX > 112) context.fillText('scheduled ahead', nowX + 6, height - 8);
 
     // Prune anything that has scrolled off the left.
     while (marks.length > 0 && marks[0]!.end < from) marks.shift();

@@ -20,12 +20,23 @@ import { applyMixer, audio, driveBed, musicDeck, play, setBed, setMaxPan, unlock
 import {
   floorFromPattern, kitOf, mixerStateOf, secondsPerBar, songOf, type State, type WorkTrack,
 } from '../state.js';
+import { track } from '../analytics.js';
 import { $, clear, debounce, el } from './dom.js';
 import { createLens } from './lens.js';
 import { startRoll, type Roll } from './roll.js';
 
 /** Three keyboard rows, twenty-four keys, in the order a hand finds them. */
 const PAD_KEYS = 'qwertyuiopasdfghjkl;zxcv'.split('');
+
+/**
+ * Whether this is a device with a pointer that hovers — which is the closest a browser gets to
+ * "has a keyboard". Two of the hints on this page name keys that a phone does not have.
+ */
+const HAS_KEYBOARD = typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
+
+const IDLE_HINT = HAS_KEYBOARD
+  ? 'stopped — space plays, the letter keys are pads'
+  : 'stopped — press play, then the pads below';
 
 const BUS_ROWS: readonly { bus: BusName; name: string; note: string }[] = [
   { bus: 'master', name: 'master', note: 'Everything. Set by arithmetic, not by the meter — nothing here is compressed or limited.' },
@@ -124,6 +135,7 @@ export function mountFloor(state: State, changed: () => void): Floor {
       syncSong(false);
       deck.play(liveSong);
       startedAt = audio().now();
+      track('transport_play', { pattern: floor.pattern, bpm: floor.bpm, tracks: floor.tracks.length });
       transport.textContent = 'Stop';
     } else {
       deck.stop();
@@ -141,6 +153,7 @@ export function mountFloor(state: State, changed: () => void): Floor {
     armed = !armed;
     if (armed && !playing) setPlaying(true);
     if (armed) hits = [];
+    else if (hits.length > 0) track('take_recorded', { hits: hits.length, pattern: floor.pattern });
     refreshRec();
   });
 
@@ -164,6 +177,7 @@ export function mountFloor(state: State, changed: () => void): Floor {
       ]);
       button.dataset['id'] = pattern.id;
       button.addEventListener('click', () => {
+        track('pattern_change', { to: pattern.id });
         Object.assign(floor, floorFromPattern(pattern.id));
         buildTracks();
         refreshPatterns();
@@ -319,6 +333,7 @@ export function mountFloor(state: State, changed: () => void): Floor {
       button.dataset['id'] = preset.id;
       button.addEventListener('click', () => {
         floor.bed = preset.id;
+        track('bed_change', { to: preset.id });
         refreshBeds();
         unlock();
         syncBed();
@@ -890,6 +905,7 @@ export function mountFloor(state: State, changed: () => void): Floor {
       const bytes = encodeWav(buffer);
       const name = `${floor.pattern}-${String(floor.bars)}bars`;
       download(`${name}.wav`, bytes, 'audio/wav');
+      track('download_take', { pattern: floor.pattern, bars: floor.bars, hits: hits.length, bed: floor.bed });
       status.textContent = `${name}.wav — ${buffer.duration.toFixed(1)} s, peak ${(20 * Math.log10(Math.max(0.00001, peakOf(buffer)))).toFixed(1)} dBFS, ${(bytes.length / 1024 / 1024).toFixed(2)} MB.`.replace('-', '−');
       status.className = 'status';
       busy = false;
@@ -898,7 +914,7 @@ export function mountFloor(state: State, changed: () => void): Floor {
 
   $('#share-floor').addEventListener('click', () => {
     void navigator.clipboard.writeText(window.location.href).then(
-      () => { status.textContent = 'Link copied — it carries the pattern, the bed and the mix.'; },
+      () => { track('copy_link', { room: 'floor' }); status.textContent = 'Link copied — it carries the pattern, the bed and the mix.'; },
       () => { status.textContent = 'The browser refused the clipboard.'; },
     );
   });
@@ -932,7 +948,7 @@ export function mountFloor(state: State, changed: () => void): Floor {
     } else if (lastStep !== -1) {
       lastStep = -1;
       for (const span of rulerHost.querySelectorAll<HTMLElement>('.ruler__cells span')) span.dataset['now'] = '0';
-      transportReadout.textContent = 'stopped — space plays, the letter keys are pads';
+      transportReadout.textContent = IDLE_HINT;
     }
   }
 
@@ -946,7 +962,7 @@ export function mountFloor(state: State, changed: () => void): Floor {
   refreshPatterns();
   refreshBeds();
   refreshProgression();
-  transportReadout.textContent = 'stopped — space plays, the letter keys are pads';
+  transportReadout.textContent = IDLE_HINT;
 
   window.addEventListener('resize', debounce(160, () => { buildRuler(); }));
 

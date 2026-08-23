@@ -39,6 +39,9 @@
 
   --rail: 22.5rem;
   --gutter: clamp(1rem, 3vw, 2.75rem);
+  /* The track-name column. Narrower on a phone, where the sixteen steps beside it are what
+     actually has to be reachable with a thumb. */
+  --trk-side: 7rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -119,14 +122,18 @@ a {
 
 .skip {
   position: absolute;
-  left: -9999px;
   top: 0;
+  left: 0;
   z-index: 20;
   background: var(--paper);
   padding: 0.6rem 1rem;
+  /* Clipped rather than parked at -9999px: an off-screen box is still a box, and on a narrow
+     screen it is one more thing that can widen the document. */
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .skip:focus {
-  left: 0;
+  clip-path: none;
 }
 
 .hidden {
@@ -225,8 +232,23 @@ a {
 .state[data-state='ready']::before {
   background: var(--spot);
 }
-.state[data-state='refused'] {
+.state[data-state='refused'],
+.state[data-state='blocked'] {
+  color: var(--spot);
+  border-color: var(--spot);
+}
+.state[data-state='blocked']::before {
+  background: var(--spot);
+}
+
+.hush {
+  margin: 0;
+  padding: 0.55rem var(--gutter) 0.6rem;
+  background: var(--spot-wash);
+  border-bottom: 1px solid var(--spot);
   color: var(--ink);
+  font-size: 0.75rem;
+  line-height: 1.55;
 }
 
 /* ---------------------------------------------------------------------------------------------
@@ -252,6 +274,12 @@ a {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-bottom: 4rem;
+}
+
+@media (min-width: 40rem) {
+  :root {
+    --trk-side: 9.5rem;
+  }
 }
 
 @media (max-width: 60rem) {
@@ -361,8 +389,13 @@ a {
 
 .readout {
   display: flex;
-  gap: 1.1rem;
+  gap: 0.35rem 1.1rem;
   flex-wrap: wrap;
+  /* Both of these, and neither is optional. A flex item defaults to a min-width of its own
+     max-content, so a readout with a long line in it pushes the whole page wider than the screen
+     and every phone gets a document that slides sideways. */
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .readout span {
@@ -895,7 +928,7 @@ select.field__input {
 
 .trk {
   display: grid;
-  grid-template-columns: 9.5rem minmax(0, 1fr);
+  grid-template-columns: var(--trk-side) minmax(0, 1fr);
   border-bottom: 1px solid var(--rule);
   min-width: 34rem;
 }
@@ -962,7 +995,9 @@ select.field__input {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  touch-action: none;
+  /* Vertical drags are ours — that is how a note's pitch moves. Horizontal ones belong to the
+     scroller, or the grid becomes unscrollable on a phone the moment a finger lands on a step. */
+  touch-action: pan-x;
 }
 .cell:nth-child(4n + 1) {
   background: var(--paper-sunk);
@@ -1003,7 +1038,7 @@ select.field__input {
 
 .ruler {
   display: grid;
-  grid-template-columns: 9.5rem minmax(0, 1fr);
+  grid-template-columns: var(--trk-side) minmax(0, 1fr);
   min-width: 34rem;
   border: 1px solid var(--rule);
   border-bottom: 0;

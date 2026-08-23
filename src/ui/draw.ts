@@ -61,9 +61,11 @@ export function drawWave(canvas: HTMLCanvasElement, buffer: AudioBuffer | null):
 
   const step = Math.max(1, Math.floor(left.length / Math.max(1, Math.round(width))));
 
-  // Time ruler.
+  // Time ruler. The tick count comes from the width rather than being fixed: twelve labels is
+  // right on a desktop stage and is twelve overlapping labels on a phone.
   const totalMs = seconds * 1000;
-  const spacing = TICKS_MS.find((ms) => totalMs / ms <= 12) ?? 2000;
+  const room = Math.max(3, Math.floor(width / 78));
+  const spacing = TICKS_MS.find((ms) => totalMs / ms <= room) ?? 2000;
   context.fillStyle = muted;
   context.font = '10px ui-monospace, monospace';
   context.textAlign = 'left';

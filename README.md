@@ -2,8 +2,8 @@
 
 **A sound foundry in the browser.** Design a kit of interface sounds that are one family rather than
 twenty-four files, build a whole track out of a sequencer and an ambience bed, play your kit over the
-top of it, and take any of it away as a real 16-bit WAV. No samples, no uploads, no account, no
-server.
+top of it, and take any of it away as a real 16-bit WAV. There are no samples anywhere: every sound
+is a handful of numbers turned into oscillators, and the file is rendered by the same engine.
 
 Live at **[foley.plausible.ventures](https://foley.plausible.ventures)**. One of the
 [Plausible Ventures](https://plausible.ventures).

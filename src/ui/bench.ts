@@ -25,6 +25,7 @@ import { zip } from '../audio/zip.js';
 import { audio as audioEngine, busGain, play, syncKit, unlock } from '../audio/live.js';
 import type { SoundOverride } from '../audio/kit.js';
 import { kitOf, type State } from '../state.js';
+import { track } from '../analytics.js';
 import { $, clear, debounce, el, readVar } from './dom.js';
 import { dbfs, drawSpark, drawWave, envelopeSeconds } from './draw.js';
 import { createLens } from './lens.js';
@@ -166,7 +167,7 @@ export function mountBench(state: State, changed: () => void): Bench {
       hint.textContent = `the ${sketch.bus} bus is silenced in the mixer — this will not be audible`;
       hint.style.color = 'var(--spot)';
     } else {
-      hint.textContent = 'click the waveform to hear it';
+      hint.textContent = 'press the waveform to hear it';
       hint.style.color = '';
     }
     renderWave();
@@ -247,6 +248,7 @@ export function mountBench(state: State, changed: () => void): Bench {
       button.dataset['id'] = voicing.id;
       button.addEventListener('click', () => {
         bench.voicing = voicing.id;
+        track('material_change', { to: voicing.id });
         refreshVoicings();
         apply();
         play(bench.selected);
@@ -512,7 +514,7 @@ export function mountBench(state: State, changed: () => void): Bench {
 
   $('#recipe-copy').addEventListener('click', () => {
     void navigator.clipboard.writeText(recipeHost.textContent ?? '').then(
-      () => { say('Recipe copied.'); },
+      () => { track('copy_recipe', { scope: recipeMode }); say('Recipe copied.'); },
       () => { say('The browser refused the clipboard.'); },
     );
   });
@@ -539,6 +541,7 @@ export function mountBench(state: State, changed: () => void): Bench {
     say('Rendering…', true);
     void wavFor(current()).then((bytes) => {
       download(`${bench.kitName || 'foley'}-${bench.selected}.wav`, bytes, 'audio/wav');
+      track('download_sound', { sound: bench.selected, material: bench.voicing, key: noteName(bench.axes.key), edited: bench.selected in bench.overrides });
       say(`${bench.selected}.wav — ${(bytes.length / 1024).toFixed(1)} kB.`);
       busy = false;
     });
@@ -567,6 +570,7 @@ export function mountBench(state: State, changed: () => void): Bench {
       });
       const bytes = zip(entries);
       download(`${name}.zip`, bytes, 'application/zip');
+      track('download_kit', { material: bench.voicing, key: noteName(bench.axes.key), sounds: SKETCHES.length, edited: Object.keys(bench.overrides).length });
       say(`${name}.zip — ${String(SKETCHES.length)} sounds, ${(bytes.length / 1024).toFixed(0)} kB.`);
       busy = false;
     })();
@@ -574,7 +578,7 @@ export function mountBench(state: State, changed: () => void): Bench {
 
   $('#share').addEventListener('click', () => {
     void navigator.clipboard.writeText(window.location.href).then(
-      () => { say('Link copied — it carries the whole kit.'); },
+      () => { track('copy_link', { room: 'bench' }); say('Link copied — it carries the whole kit.'); },
       () => { say('The browser refused the clipboard.'); },
     );
   });
@@ -636,6 +640,7 @@ export function mountBench(state: State, changed: () => void): Bench {
     if (touring) return;
     if (!unlock()) return;
     touring = true;
+    track('tour_played');
     button.disabled = true;
     // Put the selection back afterwards: the tour borrows it to walk the grid, and a visitor who
     // had a sound open should find it open again.

@@ -7,7 +7,8 @@
  * nothing anywhere else in the project reaches for an `AudioContext`.
  */
 
-import { applyMixer, onUnlockChange, unlock } from './audio/live.js';
+import { startAnalytics, track } from './analytics.js';
+import { applyMixer, canClaimPlayback, onUnlockChange, unlock } from './audio/live.js';
 import { mountBench } from './ui/bench.js';
 import { mountFloor } from './ui/floor.js';
 import { $, debounce } from './ui/dom.js';
@@ -28,7 +29,11 @@ const save = debounce(400, () => { writeUrl(state); });
 const bench = mountBench(state, save);
 const floor = mountFloor(state, save);
 
+let shown = '';
+
 function show(room: 'bench' | 'floor'): void {
+  if (room !== shown && shown !== '') track('room_switch', { to: room });
+  shown = room;
   state.room = room;
   for (const [name, parts] of Object.entries(rooms)) {
     const active = name === room;
@@ -53,11 +58,39 @@ rooms.floor.tab.addEventListener('click', () => { show('floor'); });
 
 const stateChip = $<HTMLButtonElement>('#audio-state');
 const stateText = $('#audio-state-text');
+const hush = $('#hush');
+
+const STATE_TEXT: Record<string, string> = {
+  waiting: 'press to start audio',
+  ready: 'audio running',
+  refused: 'audio unavailable here',
+  blocked: 'audio blocked — tap here',
+};
 
 onUnlockChange((unlocked) => {
   stateChip.dataset['state'] = unlocked;
-  stateText.textContent =
-    unlocked === 'ready' ? 'audio running' : unlocked === 'refused' ? 'audio unavailable here' : 'press to start audio';
+  stateText.textContent = STATE_TEXT[unlocked] ?? STATE_TEXT['waiting']!;
+  // The one failure a page cannot detect: on an iPhone the ring/silent switch mutes the ambient
+  // channel, and on iOS older than 16.4 there is no way to ask for the media channel instead.
+  // Everything reports healthy and the speaker stays quiet, so the only honest thing is to say so.
+  stateChip.title =
+    unlocked === 'blocked'
+      ? 'The audio device exists but is not running. Tap the page. On an iPhone, check the ring/silent switch on the side.'
+      : unlocked === 'ready'
+        ? 'Audio is running. On an iPhone, the side switch still has to be off silent.'
+        : '';
+  // Two different notices, because they are two different problems.
+  //
+  // `blocked` is a context that is not running, and tapping again usually fixes it. The other is
+  // the one no page can detect: on iOS the ring/silent switch mutes web audio, and before Safari
+  // 16.4 there is no way to ask for the media channel instead — so on those devices everything
+  // reports healthy while the speaker stays quiet, and the only honest thing is to say so up front.
+  const mute = unlocked === 'ready' && !canClaimPlayback() && !matchMedia('(hover: hover)').matches;
+  hush.classList.toggle('hidden', unlocked !== 'blocked' && !mute);
+  hush.textContent =
+    unlocked === 'blocked'
+      ? 'The audio device is there but it is not running. Tap anywhere on the page — and if this is an iPhone, check the ring/silent switch on the side.'
+      : 'If you hear nothing: this version of iOS silences web audio with the ring/silent switch on the side of the phone. There is no way for a page to override it.';
 });
 
 // Called from every interaction rather than once: a tab left in the background long enough gets
@@ -79,6 +112,8 @@ document.addEventListener('visibilitychange', () => {
 // The mixer belongs to the page rather than to the floor: a bus muted there is still muted on the
 // bench, and the bench says so rather than leaving somebody wondering why a sound went quiet.
 applyMixer(state.floor.gains, state.floor.mutedBuses, state.floor.maxVoices, state.floor.maxPan);
+
+startAnalytics();
 
 bench.refresh();
 floor.refresh();

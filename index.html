@@ -6,12 +6,12 @@
     <title>Foley — design interface sounds, download real WAVs</title>
     <meta
       name="description"
-      content="A sound foundry in the browser. Twenty-four interface sounds tuned to one key and one material, a sequencer and an ambience bed to build a whole track out of, and a WAV of any of it. No samples, no uploads, no account."
+      content="A sound foundry in the browser. Twenty-four interface sounds tuned to one key and one material, a sequencer and an ambience bed to build a whole track out of, and a real WAV of any of it. Every sound is synthesised from numbers — there are no samples anywhere."
     />
     <meta name="theme-color" content="#efefec" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#121312" media="(prefers-color-scheme: dark)" />
     <meta property="og:title" content="Foley" />
-    <meta property="og:description" content="Design a kit of interface sounds, or a whole track. Download the WAVs. Nothing leaves the tab." />
+    <meta property="og:description" content="Design a kit of interface sounds, or a whole track, and download the WAVs. No samples — every sound is a handful of numbers." />
     <meta property="og:type" content="website" />
     <link
       rel="icon"
@@ -35,6 +35,13 @@
       </button>
     </header>
 
+    <!-- Shown only when the device exists and is not running. Its most common cause is a thing no
+         page can see: the ring/silent switch on the side of an iPhone. -->
+    <p class="hush hidden" id="hush">
+      The audio device is there but it is not running. Tap anywhere on the page — and if this is an
+      iPhone, check the ring/silent switch on the side, which mutes browser audio on iOS.
+    </p>
+
     <!-- ==========================================================================================
          The bench — one sound at a time, and a kit that stays a family while you work on it
          ========================================================================================== -->
@@ -48,13 +55,13 @@
           <canvas class="stage__canvas" id="wave" role="img" aria-label="The waveform of the selected sound"></canvas>
           <div class="stage__foot">
             <span class="readout" id="wave-readout"></span>
-            <span id="wave-hint">click the waveform to hear it</span>
+            <span id="wave-hint">press the waveform to hear it</span>
           </div>
         </section>
 
         <section class="block" aria-labelledby="kit-label">
           <h2 class="eyebrow" id="kit-label">
-            The kit<span class="eyebrow__hint">twenty-four sounds, one key, one material — click any of them</span>
+            The kit<span class="eyebrow__hint">twenty-four sounds, one key, one material — press any of them</span>
             <button class="ghost ghost--tiny" type="button" id="tour">Play the kit ▸</button>
           </h2>
           <div id="kit"></div>
@@ -192,8 +199,8 @@
             <p>
               And the file is the same engine. The WAV is not a re-implementation of what you just heard —
               it is the identical synthesiser pointed at an offline context and asked to render faster
-              than real time, which is why the two cannot drift apart. Nothing is uploaded, there is no
-              account, and the kit you are working on is in the address bar, so the link is the save.
+              than real time, which is why the two cannot drift apart. The kit you are working on is in
+              the address bar as you work on it, so the link is the save file.
             </p>
             <p class="note">
               Everything you make with it is yours, with no conditions. Built on
@@ -290,16 +297,15 @@
 
         <section class="block">
           <div class="row" style="align-items: center; gap: 0.6rem">
-            <button class="solid" type="button" id="transport" style="flex: 0 0 8rem; width: auto">Play</button>
+            <button class="solid" type="button" id="transport" style="flex: 0 0 7rem; width: auto">Play</button>
             <button class="ghost" type="button" id="rec" style="flex: 0 0 auto">● Arm take</button>
-            <span class="bar__spacer"></span>
-            <span class="readout" id="transport-readout" style="flex: 0 0 auto"></span>
+            <span class="readout" id="transport-readout"></span>
           </div>
         </section>
 
         <section class="block" aria-labelledby="grid-label">
           <h2 class="eyebrow" id="grid-label">
-            The pattern<span class="eyebrow__hint">click a step; drag up or down on it to move the note</span>
+            The pattern<span class="eyebrow__hint">press a step; drag up or down on it to move the note</span>
           </h2>
           <!-- One scroller around both, so the beat ruler cannot drift out of step with the grid
                it is numbering on a narrow screen. -->
