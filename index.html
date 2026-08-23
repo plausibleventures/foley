@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Foley — design interface sounds, download real WAVs</title>
+    <meta
+      name="description"
+      content="A sound foundry in the browser. Twenty-four interface sounds tuned to one key and one material, a sequencer and an ambience bed to build a whole track out of, and a WAV of any of it. No samples, no uploads, no account."
+    />
+    <meta name="theme-color" content="#efefec" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121312" media="(prefers-color-scheme: dark)" />
+    <meta property="og:title" content="Foley" />
+    <meta property="og:description" content="Design a kit of interface sounds, or a whole track. Download the WAVs. Nothing leaves the tab." />
+    <meta property="og:type" content="website" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2316181a'/%3E%3Cpath d='M3 16h4l3-9 4 20 4-15 3 8h8' stroke='%23e0803f' stroke-width='2.6' fill='none' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#console">Skip to the controls</a>
+
+    <header class="bar">
+      <h1 class="bar__name">Foley</h1>
+      <p class="bar__what">A sound foundry</p>
+      <span class="bar__spacer"></span>
+      <div class="rooms" role="tablist" aria-label="Room">
+        <button type="button" role="tab" id="tab-bench" aria-controls="bench" aria-selected="true">The bench</button>
+        <button type="button" role="tab" id="tab-floor" aria-controls="floor" aria-selected="false">The floor</button>
+      </div>
+      <button class="state" type="button" id="audio-state" data-state="waiting">
+        <span id="audio-state-text">press to start audio</span>
+      </button>
+    </header>
+
+    <!-- ==========================================================================================
+         The bench — one sound at a time, and a kit that stays a family while you work on it
+         ========================================================================================== -->
+    <main class="sheet" id="bench" role="tabpanel" aria-labelledby="tab-bench">
+      <div class="work">
+        <section class="stage" aria-labelledby="stage-name">
+          <div class="stage__id">
+            <span class="stage__name" id="stage-name">tap</span>
+            <span class="stage__tag" id="stage-tag"></span>
+          </div>
+          <canvas class="stage__canvas" id="wave" role="img" aria-label="The waveform of the selected sound"></canvas>
+          <div class="stage__foot">
+            <span class="readout" id="wave-readout"></span>
+            <span id="wave-hint">click the waveform to hear it</span>
+          </div>
+        </section>
+
+        <section class="block" aria-labelledby="kit-label">
+          <h2 class="eyebrow" id="kit-label">
+            The kit<span class="eyebrow__hint">twenty-four sounds, one key, one material — click any of them</span>
+            <button class="ghost ghost--tiny" type="button" id="tour">Play the kit ▸</button>
+          </h2>
+          <div id="kit"></div>
+        </section>
+
+        <section class="block" aria-labelledby="check-label">
+          <h2 class="eyebrow" id="check-label">
+            The check<span class="eyebrow__hint">what the engine's own validator says about this table</span>
+          </h2>
+          <div id="check"></div>
+          <p class="note">
+            Layers sum, and WebAudio hard-clips above 1.0 — a chord adding to 1.4 does not play forty
+            percent louder, it plays distorted, and differently distorted depending on what happens to
+            overlap it. This is the engine's own <code>validateSounds</code>, run against the exact table
+            below, so the answer arrives before you have played the sound rather than after somebody
+            complains about it. Nothing the sliders can do will fail it: a sound whose own worst instant
+            would cross the ceiling is scaled down as a whole before it ever reaches the engine. Edit a
+            layer by hand, though, and you are on your own — which is the point of leaving the check
+            here rather than hiding it once it goes green.
+          </p>
+        </section>
+
+        <section class="block" aria-labelledby="recipe-label">
+          <h2 class="eyebrow" id="recipe-label">
+            The recipe<span class="eyebrow__hint">paste it into a project and it plays there too</span>
+          </h2>
+          <div class="row" style="margin-bottom: 0.6rem">
+            <button class="ghost" type="button" id="recipe-one" aria-pressed="true">This sound</button>
+            <button class="ghost" type="button" id="recipe-all" aria-pressed="false">The whole kit</button>
+            <button class="ghost" type="button" id="recipe-copy">Copy</button>
+          </div>
+          <pre class="code" id="recipe"></pre>
+        </section>
+
+        <section class="block" aria-labelledby="rules-label">
+          <h2 class="eyebrow" id="rules-label">
+            Seven things that make a sound an interface sound<span class="eyebrow__hint">and not a sound effect</span>
+          </h2>
+          <ul class="rules">
+            <li>
+              <b>01</b>
+              <span
+                ><strong>Short.</strong> A tap is thirty to fifty milliseconds. Anything a user hears more
+                than twice a minute has to be over before they have finished the gesture that caused it;
+                two hundred milliseconds is a sound they are still hearing when they reach the next
+                control, and that is what "the app feels slow" actually is.</span
+              >
+            </li>
+            <li>
+              <b>02</b>
+              <span
+                ><strong>Quiet.</strong> Every sound here peaks well under a quarter of full scale. An
+                interface sound competes with music, a call, a room — and the one that wins that fight is
+                the one that gets the whole app muted, alarms included.</span
+              >
+            </li>
+            <li>
+              <b>03</b>
+              <span
+                ><strong>Direction is pitch.</strong> Rising means forward, done, sent, on. Falling means
+                back, closed, deleted, off. No user has ever been taught this and every user knows
+                it.</span
+              >
+            </li>
+            <li>
+              <b>04</b>
+              <span
+                ><strong>Pairs are reversals.</strong> Open and close, on and off, send and receive: the
+                same two notes in the other order. Half a kit teaches the other half, and a user who has
+                heard one already knows what its opposite will sound like.</span
+              >
+            </li>
+            <li>
+              <b>05</b>
+              <span
+                ><strong>Everything in one key.</strong> This is the whole difference between a designed
+                kit and a folder of downloads. Every sound on this page is an interval over one root, so
+                two of them landing at once make a chord instead of a mess — and nobody notices it
+                consciously, and everybody notices when it is missing.</span
+              >
+            </li>
+            <li>
+              <b>06</b>
+              <span
+                ><strong>Nothing bright.</strong> Every layer goes through a low-pass. Brightness is what
+                cuts through, and cutting through is precisely what you do not want on the four hundredth
+                press of the day.</span
+              >
+            </li>
+            <li>
+              <b>07</b>
+              <span
+                ><strong>The important ones are rare.</strong> Success and error have to stay expensive.
+                A sound that fires on every action means nothing by lunchtime, which is why the biggest
+                sound in this kit has the longest minimum gap.</span
+              >
+            </li>
+          </ul>
+        </section>
+
+        <section class="block" aria-labelledby="how-label">
+          <h2 class="eyebrow" id="how-label">How it is made</h2>
+          <div class="prose">
+            <p>
+              Jack Foley stood in a room with a box of gravel and a pair of shoes and made a footstep
+              that was better than a footstep. Everything on this page is the opposite method and the
+              same job: there is no gravel, no microphone and no file — every sound is a handful of
+              numbers turned into oscillators in this tab, and the WAV you download is rendered here too.
+            </p>
+            <p>
+              A sound is <strong>ten numbers, not a node graph</strong>. One fixed chain per layer —
+              source, high-pass, low-pass, gain envelope, pan — and the only things you can vary are
+              which of five sources it is, one starting pitch, one sweep target, one peak gain, one decay,
+              one delay, one attack, two filter corners and a pan. You cannot reorder the chain, add a
+              second filter, or modulate anything with anything. That refusal is what makes the check
+              above possible: the moment routing is up to the author, a feedback delay at 0.9 turns a
+              quiet chord into a runaway and no static check can see it coming.
+            </p>
+            <p>
+              The five materials are not five presets. They differ in the one thing no slider can reach:
+              <strong>which partials are there at all</strong>. Glass has harmonic partials at two and
+              three times the fundamental, which is why the ear hears one pitch. Metal has them at 2.76
+              and 5.4 — the ratios of a real bell, belonging to no scale — and that inharmonicity, not
+              brightness, is why a bell sounds struck. Wood is near-misses at 2.4 and 3.9. Rubber has none
+              at all. Move every slider to its limit on Glass and you will not arrive at Metal, and that
+              is the point: the sliders are how hard you hit it, and the material is what you hit.
+            </p>
+            <p>
+              The kit is tuned rather than assembled. No sound here stores a frequency — each is written
+              as intervals over the kit's root, so moving the key moves all twenty-four together and they
+              stay a family. Everything that means yes rises through a major triad; everything that means
+              no falls by a minor second or a tritone, which are the two intervals a listener reads as
+              wrong without being able to name them.
+            </p>
+            <p>
+              And the file is the same engine. The WAV is not a re-implementation of what you just heard —
+              it is the identical synthesiser pointed at an offline context and asked to render faster
+              than real time, which is why the two cannot drift apart. Nothing is uploaded, there is no
+              account, and the kit you are working on is in the address bar, so the link is the save.
+            </p>
+            <p class="note">
+              Everything you make with it is yours, with no conditions. Built on
+              <a href="https://www.npmjs.com/package/@latticekit/audio">@latticekit/audio</a>. It is one of
+              the <a href="https://plausible.ventures">Plausible Ventures</a>.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <aside class="console" id="console" aria-label="Sound controls">
+        <section class="panel">
+          <h2 class="eyebrow">Material<span class="eyebrow__hint">what you are striking</span></h2>
+          <div class="picks" id="voicings"></div>
+          <p class="note" id="voicing-note"></p>
+        </section>
+
+        <section class="panel">
+          <h2 class="eyebrow">Key<span class="eyebrow__hint">every sound is an interval over this</span></h2>
+          <div class="axis">
+            <div class="axis__head">
+              <span class="axis__label">Root</span><span class="axis__value" id="key-value">D5</span>
+            </div>
+            <input type="range" id="key" min="-17" max="19" step="1" />
+            <div class="axis__ends"><span>A3</span><span>E6</span></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="eyebrow">The axes<span class="eyebrow__hint">how hard, how long, how bright</span></h2>
+          <div id="axes"></div>
+          <div class="row" style="margin-top: 0.7rem">
+            <button class="ghost" type="button" id="surprise">Surprise me</button>
+            <button class="ghost" type="button" id="reset">Reset</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="eyebrow">
+            <span id="layers-title">Layers</span><span class="eyebrow__hint" id="layers-hint"></span>
+          </h2>
+          <div id="layers"></div>
+          <div class="row">
+            <button class="ghost" type="button" id="layer-add">Add layer</button>
+            <button class="ghost" type="button" id="layer-revert">Back to the kit</button>
+          </div>
+          <p class="note">
+            Editing a layer detaches this sound from the material and the axes — it stops following them
+            until you put it back.
+          </p>
+        </section>
+
+        <section class="panel">
+          <h2 class="eyebrow">Take it with you<span class="eyebrow__hint">16-bit WAV, 44.1 kHz</span></h2>
+          <label class="field">
+            <span class="field__label">Name the kit</span>
+            <input class="field__input" id="kitname" type="text" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="normalise" />
+            <span>Normalise every file to −1 dBFS</span>
+          </label>
+          <p class="note" style="margin-top: 0.15rem">
+            Off by default, and it is worth knowing why: the kit is designed so that a tap sits under a
+            confirm and a confirm under a success. Normalising each file separately makes them all the
+            same loudness, which is exactly the relationship the design is carrying.
+          </p>
+          <button class="solid" type="button" id="dl-one">Download this sound</button>
+          <div class="row" style="margin-top: 0.5rem">
+            <button class="ghost" type="button" id="dl-kit">The whole kit (.zip)</button>
+            <button class="ghost" type="button" id="share">Copy link</button>
+          </div>
+          <p class="status" id="bench-status">The link carries the material, the key, every axis and every edit.</p>
+        </section>
+      </aside>
+    </main>
+
+    <!-- ==========================================================================================
+         The floor — the sequencer, the bed, and the kit played over the top
+         ========================================================================================== -->
+    <main class="sheet hidden" id="floor" role="tabpanel" aria-labelledby="tab-floor">
+      <div class="work">
+        <section class="stage" aria-labelledby="roll-label">
+          <div class="stage__id">
+            <span class="stage__name" id="roll-label">The roll</span>
+            <span class="stage__tag">every voice the engine schedules — no analyser, no device needed</span>
+          </div>
+          <canvas class="stage__canvas" id="roll" role="img" aria-label="Every voice the engine has scheduled, as it happens"></canvas>
+          <div class="stage__foot">
+            <span class="legend"><i class="ui">ui</i><i class="sfx">sfx</i><i class="music">music</i></span>
+            <span class="readout" id="roll-readout"></span>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="row" style="align-items: center; gap: 0.6rem">
+            <button class="solid" type="button" id="transport" style="flex: 0 0 8rem; width: auto">Play</button>
+            <button class="ghost" type="button" id="rec" style="flex: 0 0 auto">● Arm take</button>
+            <span class="bar__spacer"></span>
+            <span class="readout" id="transport-readout" style="flex: 0 0 auto"></span>
+          </div>
+        </section>
+
+        <section class="block" aria-labelledby="grid-label">
+          <h2 class="eyebrow" id="grid-label">
+            The pattern<span class="eyebrow__hint">click a step; drag up or down on it to move the note</span>
+          </h2>
+          <!-- One scroller around both, so the beat ruler cannot drift out of step with the grid
+               it is numbering on a narrow screen. -->
+          <div class="scroller">
+            <div id="ruler"></div>
+            <div class="tracks" id="tracks"></div>
+          </div>
+          <div class="row" style="margin-top: 0.7rem">
+            <select class="field__input" id="add-instrument" style="flex: 2 1 12rem"></select>
+            <button class="ghost" type="button" id="add-track" style="flex: 1 1 8rem">Add track</button>
+          </div>
+          <div id="song-check" style="margin-top: 0.7rem"></div>
+        </section>
+
+        <section class="block" aria-labelledby="pads-label">
+          <h2 class="eyebrow" id="pads-label">
+            The pads<span class="eyebrow__hint">your kit, over the top — the keyboard row plays them</span>
+          </h2>
+          <div class="pads" id="pads"></div>
+          <p class="note">
+            These are the same twenty-four sounds you designed on the bench, on the same buses, throttled
+            the same way. Arm a take and every hit is recorded against the bar it landed on, so the
+            export is the performance rather than a quantised copy of it.
+          </p>
+        </section>
+
+        <section class="block" aria-labelledby="floor-how">
+          <h2 class="eyebrow" id="floor-how">What is actually running</h2>
+          <div class="prose">
+            <p>
+              Three things at once, and they are three different mechanisms rather than three tracks.
+              The <strong>sequencer</strong> schedules notes a second and a half ahead of the clock and
+              pins them to it, so the pattern does not stutter when you change tab — a scheduler driven
+              by animation frames runs at zero hertz in a hidden tab and the music simply stops. The
+              <strong>bed</strong> is not a track at all: it is a handful of oscillators that never stop,
+              whose gain, filter and pitch follow two numbers. And the <strong>pads</strong> are one-shots
+              with a minimum gap each, on the interface bus, which is why hammering one gives you a run
+              up the scale rather than twenty stacked copies of the same blip.
+            </p>
+            <p>
+              The roll above is drawn from the engine's own <code>onScheduled</code> callback rather than
+              from an analyser. Every mark is one voice the engine decided to build: its height is the
+              pitch, its width the length, its colour the bus. It is the same feed a test would assert
+              against with no sound card present, which is why it stays in step with what you hear
+              instead of lagging a frame behind it.
+            </p>
+            <p>
+              A loop survives an hour by resting, staying under the information, and not repeating
+              exactly. Two cheap mechanisms do the last one here without a composer: a track can sit out
+              some bars of the progression, and it can drop notes at a rate decided by a seeded hash
+              rather than by chance — so the same seed is the same twenty minutes on every machine, and
+              muting one track cannot shift what any other track plays.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <aside class="console" aria-label="Floor controls">
+        <section class="panel">
+          <h2 class="eyebrow">Patterns<span class="eyebrow__hint">six starting points</span></h2>
+          <div class="picks" id="patterns"></div>
+          <p class="note" id="pattern-note"></p>
+        </section>
+
+        <section class="panel">
+          <h2 class="eyebrow">The song</h2>
+          <div id="song-axes"></div>
+          <div class="field" style="margin-top: 0.7rem">
+            <span class="field__label">Progression — semitones per bar</span>
+            <div class="row" id="progression"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="eyebrow">The bed<span class="eyebrow__hint">the half that survives twenty minutes</span></h2>
+          <div class="picks" id="beds"></div>
+          <p class="note" id="bed-note"></p>
+          <div id="bed-axes" style="margin-top: 0.5rem"></div>
+        </section>
+
+        <section class="panel">
+          <h2 class="eyebrow">Mixer<span class="eyebrow__hint">three buses and the one they feed</span></h2>
+          <div id="mixer"></div>
+          <div class="axis" style="margin-top: 0.4rem">
+            <div class="axis__head">
+              <span class="axis__label">Voice ceiling</span><span class="axis__value" id="voices-value">24</span>
+            </div>
+            <input type="range" id="voices" min="2" max="32" step="1" />
+            <p class="axis__note">
+              Past this many one-shots in flight, a play is dropped rather than queued — a queued burst
+              arrives after the moment that caused it and reads as lag. Drag it to 3 and mash the pads.
+              Lowering it refuses new plays; it does not cut short what is already sounding, so the
+              counter above can read higher than the ceiling until the release tails pass.
+            </p>
+          </div>
+          <div class="axis">
+            <div class="axis__head">
+              <span class="axis__label">Stereo width</span><span class="axis__value" id="width-value">60%</span>
+            </div>
+            <input type="range" id="width" min="0" max="100" step="1" />
+            <p class="axis__note">
+              The absolute pan limit. At zero everything is mono, which is a real accessibility setting
+              and costs nothing to honour. The pads pan by where they sit in the row — but only the three
+              on the world bus move, because an interface sound that slides around the stereo field as
+              you work is the most disorienting thing this engine can do, and the other twenty-one
+              opted out.
+            </p>
+          </div>
+          <div class="axis">
+            <div class="axis__head">
+              <span class="axis__label">Pad tuning</span><span class="axis__value" id="pad-detune-value">as designed</span>
+            </div>
+            <input type="range" id="pad-detune" min="-12" max="12" step="1" />
+            <p class="axis__note">
+              Semitones added to every pad hit. The kit is tuned on the bench and the song is tuned
+              here, and this is what reconciles the two without rebuilding either — the same per-event
+              detune a game uses to pitch a sound by the size of the thing that made it.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="eyebrow">Take it with you<span class="eyebrow__hint">the whole take, offline-rendered</span></h2>
+          <div class="axis">
+            <div class="axis__head">
+              <span class="axis__label">Length</span><span class="axis__value" id="bars-value">8 bars</span>
+            </div>
+            <input type="range" id="bars" min="1" max="32" step="1" />
+          </div>
+          <label class="toggle" style="margin-top: 0.5rem">
+            <input type="checkbox" id="normalise-take" />
+            <span>Normalise to −1 dBFS</span>
+          </label>
+          <p class="note" style="margin: 0.15rem 0 0.6rem">
+            On by default here, because a take is a finished thing rather than one voice of a set. The
+            mixer's own levels sit well under full scale on purpose — nothing in this engine is
+            compressed or limited, so the headroom is real rather than reclaimed later.
+          </p>
+          <button class="solid" type="button" id="dl-take">Render the take (.wav)</button>
+          <button class="ghost ghost--wide" type="button" id="share-floor" style="margin-top: 0.5rem">Copy link</button>
+          <p class="status" id="floor-status">The sequencer, the bed and every recorded hit, in one file.</p>
+        </section>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

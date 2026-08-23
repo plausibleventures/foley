@@ -1,0 +1,52 @@
+# foley, built and published to foley.plausible.ventures.
+#
+# The custom domain lives in the repository's Pages settings, not in `public/CNAME`. That file is
+# built into the artifact and is worth keeping as a record of which host this tree claims, but it
+# configures nothing: a CNAME file only sets the domain for the old branch-based Pages build. On a
+# workflow deploy like this one the domain has to be set on the repository itself, and a site that
+# is missing it answers on github.io and nowhere else. GitHub also clears the Pages HTTPS
+# enforcement flag whenever the custom domain changes and does not put it back.
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      # The gate. Every sound in the kit is built at all 128 corners of the axis space against
+      # every material and asserted not to clip, go inaudible or fall under the audible floor;
+      # every pattern is run through the sequencer's own validator; every bed is checked for a
+      # hole between its crossfade bands. A recipe that would distort fails the deploy, not the tab.
+      - run: npm run check
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

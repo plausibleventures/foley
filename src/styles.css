@@ -1,0 +1,1220 @@
+/*
+ * The console.
+ *
+ * A page about interface sound should be an interface worth listening to, so the layout is a
+ * workbench rather than a landing page: the thing you are making takes the width, the numbers
+ * that make it live in a rail down the side, and nothing on the page is coloured unless the
+ * colour means something.
+ *
+ * The spot colour is ferric oxide — the red-brown of the coating on magnetic tape, which is the
+ * only pigment the recording century actually had. It marks one thing: the signal. Everything
+ * that is a level, a waveform or a sounding voice is that colour, and everything that is a label
+ * about them is not.
+ *
+ * The three bus colours are the second decision. They have to be told apart at four pixels wide
+ * in a scrolling roll, so they are picked around the wheel rather than by shade — oxide, a cold
+ * teal, a violet — which also survives the two common colour deficiencies.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --paper: #efefec;
+  --paper-sunk: #e6e6e2;
+  --paper-lift: #f7f7f5;
+  --ink: #16181a;
+  --rule: #c9c9c3;
+  --rule-soft: #dcdcd6;
+  --muted: #6e7276;
+  --spot: #a4441c;
+  --spot-lit: #c25526;
+  --spot-wash: rgba(164, 68, 28, 0.1);
+
+  --bus-ui: #a4441c;
+  --bus-sfx: #1c6f74;
+  --bus-music: #5a4a9c;
+
+  --mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tech: 'Martian Mono', 'DM Mono', ui-monospace, monospace;
+
+  --rail: 22.5rem;
+  --gutter: clamp(1rem, 3vw, 2.75rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121312;
+    --paper-sunk: #0d0e0d;
+    --paper-lift: #1a1c1a;
+    --ink: #e8e8e3;
+    --rule: #313330;
+    --rule-soft: #232522;
+    --muted: #868a85;
+    --spot: #e0803f;
+    --spot-lit: #f09a5c;
+    --spot-wash: rgba(224, 128, 63, 0.13);
+
+    --bus-ui: #e0803f;
+    --bus-sfx: #45b6b3;
+    --bus-music: #9d8ce8;
+  }
+}
+
+@font-face {
+  font-family: 'Martian Mono';
+  src: url('/fonts/martian-mono.woff2') format('woff2');
+  font-weight: 300 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DM Mono';
+  src: url('/fonts/dm-mono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DM Mono';
+  src: url('/fonts/dm-mono-500.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: var(--spot);
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--spot);
+  outline-offset: 2px;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 20;
+  background: var(--paper);
+  padding: 0.6rem 1rem;
+}
+.skip:focus {
+  left: 0;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Masthead
+   --------------------------------------------------------------------------------------------- */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem 1.35rem;
+  flex-wrap: wrap;
+  padding: 0.7rem var(--gutter);
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.bar__name {
+  margin: 0;
+  font-family: var(--tech);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.bar__what {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.bar__spacer {
+  flex: 1 1 auto;
+}
+
+.rooms {
+  display: flex;
+  border: 1px solid var(--rule);
+}
+
+.rooms button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0.34rem 0.95rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--muted);
+}
+.rooms button + button {
+  border-left: 1px solid var(--rule);
+}
+.rooms button[aria-selected='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  padding: 0.28rem 0.6rem;
+  cursor: pointer;
+  background: transparent;
+  /* Fixed width on purpose: the label changes the first time anything is pressed, and a chip that
+     resizes at that moment shifts the tabs beside it out from under the pointer that pressed
+     them — the click lands somewhere else and nothing appears to have happened. */
+  min-width: 11.5rem;
+  justify-content: center;
+}
+.state::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.state[data-state='ready'] {
+  color: var(--spot);
+  border-color: color-mix(in srgb, var(--spot) 45%, var(--rule));
+}
+.state[data-state='ready']::before {
+  background: var(--spot);
+}
+.state[data-state='refused'] {
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The sheet: work on the left, numbers in the rail
+   --------------------------------------------------------------------------------------------- */
+
+.sheet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail);
+  align-items: start;
+}
+
+.work {
+  min-width: 0;
+  padding: 0 0 5rem;
+  border-right: 1px solid var(--rule);
+}
+
+.console {
+  position: sticky;
+  top: 3.1rem;
+  max-height: calc(100vh - 3.1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 4rem;
+}
+
+@media (max-width: 60rem) {
+  .sheet {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .work {
+    border-right: 0;
+    padding-bottom: 1rem;
+  }
+  .console {
+    position: static;
+    max-height: none;
+    border-top: 1px solid var(--rule);
+  }
+}
+
+.block {
+  padding: 1.15rem var(--gutter) 1.4rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.panel {
+  padding: 1rem var(--gutter) 1.15rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.75rem;
+  font-family: var(--tech);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.eyebrow__hint {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+
+.note {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.62;
+  max-width: 62ch;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The stage — a waveform, or the roll
+   --------------------------------------------------------------------------------------------- */
+
+.stage {
+  position: relative;
+  background: var(--paper-sunk);
+  border-bottom: 1px solid var(--rule);
+}
+
+.stage__canvas {
+  display: block;
+  width: 100%;
+  height: clamp(8.5rem, 21vh, 13rem);
+}
+
+.stage__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem var(--gutter) 0.5rem;
+  border-top: 1px solid var(--rule-soft);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.stage__id {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.6rem var(--gutter) 0.1rem;
+}
+
+.stage__name {
+  font-family: var(--tech);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+
+.stage__tag {
+  font-size: 0.72rem;
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.readout {
+  display: flex;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.readout span {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+.readout b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Buttons
+   --------------------------------------------------------------------------------------------- */
+
+.solid,
+.ghost {
+  appearance: none;
+  cursor: pointer;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: inherit;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.ghost:hover {
+  border-color: var(--ink);
+}
+.solid {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+  width: 100%;
+  font-weight: 500;
+}
+.solid:hover {
+  background: var(--spot);
+  border-color: var(--spot);
+}
+.solid[disabled],
+.ghost[disabled] {
+  opacity: 0.42;
+  cursor: default;
+}
+.ghost--wide {
+  width: 100%;
+}
+.ghost--tiny {
+  padding: 0.16rem 0.5rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  margin-left: auto;
+}
+.row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.row > * {
+  flex: 1 1 auto;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Segmented pickers — the materials, the rooms in the rail
+   --------------------------------------------------------------------------------------------- */
+
+.picks {
+  display: grid;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+.pick {
+  appearance: none;
+  border: 0;
+  text-align: left;
+  background: var(--paper);
+  color: inherit;
+  cursor: pointer;
+  padding: 0.5rem 0.7rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  transition: background 0.12s;
+}
+.pick:hover {
+  background: var(--paper-lift);
+}
+.pick[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.pick[aria-pressed='true'] .pick__tag {
+  color: color-mix(in srgb, var(--paper) 62%, transparent);
+}
+
+.pick__name {
+  font-family: var(--tech);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.pick__tag {
+  font-size: 0.68rem;
+  color: var(--muted);
+  flex: 1 1 auto;
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Sliders
+   --------------------------------------------------------------------------------------------- */
+
+.axis {
+  padding: 0.45rem 0 0.75rem;
+  border-bottom: 1px dotted var(--rule-soft);
+}
+.axis:last-child {
+  border-bottom: 0;
+}
+
+.axis__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.axis__label {
+  font-size: 0.76rem;
+  cursor: help;
+}
+
+.axis__value {
+  font-size: 0.72rem;
+  color: var(--spot);
+  font-weight: 500;
+}
+
+.axis__ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+.axis__note {
+  margin: 0.4rem 0 0.1rem;
+  font-size: 0.71rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/*
+ * The lens.
+ *
+ * Eight axes with an explanation under each one is four screens of rail before you reach the
+ * export button, and a paragraph you have already read is worse than no paragraph. One fixed
+ * pane at the top of the panel says what the control under the pointer does; it does not move,
+ * so nothing below it jumps, and the height is reserved for the longest note in the set.
+ */
+.lens {
+  min-height: 6.2em;
+  margin: 0 0 0.65rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--rule-soft);
+  background: var(--paper-lift);
+  font-size: 0.71rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.lens b {
+  display: block;
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 0.72rem;
+  margin-bottom: 0.12rem;
+}
+.lens--idle b {
+  color: var(--muted);
+}
+
+.axis--lit .axis__label {
+  color: var(--spot);
+}
+
+input[type='range'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 1.15rem;
+  background: transparent;
+  margin: 0.15rem 0 0;
+  display: block;
+  cursor: ew-resize;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--rule);
+}
+input[type='range']::-moz-range-track {
+  height: 1px;
+  background: var(--rule);
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 3px;
+  height: 0.85rem;
+  margin-top: -0.42rem;
+  background: var(--spot);
+  border: 0;
+  border-radius: 0;
+}
+input[type='range']::-moz-range-thumb {
+  width: 3px;
+  height: 0.85rem;
+  background: var(--spot);
+  border: 0;
+  border-radius: 0;
+}
+input[type='range']:disabled::-webkit-slider-thumb {
+  background: var(--rule);
+}
+input[type='range']:disabled::-moz-range-thumb {
+  background: var(--rule);
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The kit grid
+   --------------------------------------------------------------------------------------------- */
+
+.family {
+  margin-bottom: 1.35rem;
+}
+.family:last-child {
+  margin-bottom: 0;
+}
+
+.family__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.3rem;
+  margin-bottom: 0.6rem;
+}
+
+.family__name {
+  font-family: var(--tech);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.family__note {
+  font-size: 0.71rem;
+  color: var(--muted);
+}
+
+.sounds {
+  display: grid;
+  /* Explicit counts rather than auto-fill: every group holds exactly six, and auto-fill leaves a
+     hairline-bordered empty cell at the end of the row that reads as a missing sound. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule-soft);
+  border: 1px solid var(--rule-soft);
+}
+@media (min-width: 34rem) {
+  .sounds {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 62rem) {
+  .sounds {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.sound {
+  appearance: none;
+  border: 0;
+  background: var(--paper);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0.5rem 0.65rem 0.55rem;
+  display: grid;
+  gap: 0.25rem;
+  position: relative;
+  transition: background 0.1s;
+}
+.sound:hover {
+  background: var(--paper-lift);
+}
+.sound[aria-current='true'] {
+  background: var(--spot-wash);
+  box-shadow: inset 2px 0 0 var(--spot);
+}
+
+.sound__name {
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sound__spark {
+  display: block;
+  width: 100%;
+  height: 1.6rem;
+}
+
+.sound__edited {
+  width: 5px;
+  height: 5px;
+  background: var(--spot);
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Layers editor
+   --------------------------------------------------------------------------------------------- */
+
+.layer {
+  border: 1px solid var(--rule);
+  margin-bottom: 0.55rem;
+  background: var(--paper-lift);
+}
+
+.layer__head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.45rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.layer__n {
+  font-size: 0.64rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+.layer__body {
+  padding: 0.15rem 0.55rem 0.5rem;
+}
+
+.layer__wave {
+  display: flex;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  flex: 1 1 auto;
+}
+.layer__wave button {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0;
+  flex: 1 1 0;
+  min-width: 0;
+  text-transform: uppercase;
+}
+.layer__wave button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.icon {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  width: 1.5rem;
+  height: 1.5rem;
+  line-height: 1;
+  padding: 0;
+  flex: 0 0 auto;
+}
+.icon:hover {
+  color: var(--spot);
+  border-color: var(--spot);
+}
+
+.mini {
+  display: grid;
+  grid-template-columns: 4.6rem 1fr 3.4rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.16rem 0;
+}
+.mini__label {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.mini__value {
+  font-size: 0.68rem;
+  text-align: right;
+  color: var(--spot);
+}
+.mini input[type='range'] {
+  height: 0.9rem;
+  margin: 0;
+}
+
+/* A stage that is not in the chain at all. The thumb would otherwise read as "turned down". */
+.mini input.mini--off {
+  opacity: 0.3;
+}
+.mini__label--optional {
+  cursor: pointer;
+  text-decoration: underline dotted var(--rule);
+  text-underline-offset: 0.2em;
+}
+.mini__label--optional:hover {
+  color: var(--spot);
+  text-decoration-color: var(--spot);
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The check — what validateSounds says about the table as it stands
+   --------------------------------------------------------------------------------------------- */
+
+.check {
+  border: 1px solid var(--rule);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.73rem;
+  line-height: 1.5;
+  background: var(--paper-lift);
+}
+.check--ok {
+  color: var(--muted);
+}
+.check--bad {
+  border-color: var(--spot);
+  background: var(--spot-wash);
+}
+.check ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+}
+.check li {
+  margin-bottom: 0.2rem;
+}
+.check code {
+  color: var(--spot);
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Code view
+   --------------------------------------------------------------------------------------------- */
+
+.code {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  overflow-x: auto;
+  max-height: 22rem;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.field {
+  display: block;
+  margin-bottom: 0.6rem;
+}
+.field__label {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+.toggle {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.74rem;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+.toggle input {
+  accent-color: var(--spot);
+  margin: 0;
+}
+
+.field__input,
+select.field__input {
+  width: 100%;
+  background: var(--paper-lift);
+  border: 1px solid var(--rule);
+  padding: 0.4rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The floor: sequencer grid
+   --------------------------------------------------------------------------------------------- */
+
+.scroller {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.tracks {
+  border: 1px solid var(--rule);
+  border-bottom: 0;
+  min-width: 34rem;
+}
+
+.trk {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  border-bottom: 1px solid var(--rule);
+  min-width: 34rem;
+}
+
+.trk__side {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.4rem;
+  border-right: 1px solid var(--rule);
+  background: var(--paper-lift);
+}
+
+.trk__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.trk--muted .trk__name,
+.trk--muted .cells {
+  opacity: 0.32;
+}
+
+.trk__mute {
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.06rem 0.28rem;
+}
+.trk__mute[aria-pressed='true'] {
+  background: var(--spot);
+  border-color: var(--spot);
+  color: var(--paper);
+}
+
+.cells {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule-soft);
+}
+
+.cell {
+  appearance: none;
+  border: 0;
+  background: var(--paper);
+  cursor: ns-resize;
+  height: 2.05rem;
+  padding: 0;
+  position: relative;
+  font-size: 0.6rem;
+  color: var(--muted);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  touch-action: none;
+}
+.cell:nth-child(4n + 1) {
+  background: var(--paper-sunk);
+}
+.cell[data-on='1'] {
+  background: var(--spot);
+  color: var(--paper);
+}
+.cell[data-on='1']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  height: var(--fill, 0%);
+}
+.cell__n {
+  position: relative;
+  padding-bottom: 0.12rem;
+  font-variant-numeric: tabular-nums;
+}
+.cell--beat {
+  box-shadow: inset 0 2px 0 var(--ink);
+}
+
+.trk__menu {
+  position: fixed;
+  z-index: 30;
+  width: 20rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.22);
+  padding: 0.7rem 0.8rem 0.85rem;
+}
+
+.ruler {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  min-width: 34rem;
+  border: 1px solid var(--rule);
+  border-bottom: 0;
+  background: var(--paper-lift);
+}
+.ruler__side {
+  border-right: 1px solid var(--rule);
+  font-size: 0.62rem;
+  color: var(--muted);
+  padding: 0.16rem 0.4rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ruler__cells {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  font-size: 0.6rem;
+  color: var(--muted);
+  text-align: center;
+}
+.ruler__cells span {
+  padding: 0.16rem 0;
+}
+.ruler__cells span[data-beat='1'] {
+  color: var(--ink);
+}
+.ruler__cells span[data-now='1'] {
+  background: var(--spot);
+  color: var(--paper);
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Pads
+   --------------------------------------------------------------------------------------------- */
+
+.pads {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule-soft);
+  border: 1px solid var(--rule-soft);
+}
+@media (min-width: 40rem) {
+  .pads {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+@media (min-width: 68rem) {
+  .pads {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
+
+.pad {
+  appearance: none;
+  border: 0;
+  background: var(--paper);
+  color: inherit;
+  cursor: pointer;
+  padding: 0.55rem 0.4rem 0.45rem;
+  display: grid;
+  gap: 0.1rem;
+  justify-items: center;
+  transition: background 0.06s;
+  touch-action: manipulation;
+}
+.pad:hover {
+  background: var(--paper-lift);
+}
+.pad--lit {
+  background: var(--spot) !important;
+  color: var(--paper);
+}
+.pad__key {
+  font-family: var(--tech);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.pad--lit .pad__key {
+  color: var(--paper);
+}
+.pad__name {
+  font-size: 0.68rem;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Mixer
+   --------------------------------------------------------------------------------------------- */
+
+.mix {
+  display: grid;
+  grid-template-columns: 4.2rem 1fr 2.6rem 1.9rem;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0;
+}
+.mix__name {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.mix__name[data-bus='ui'] {
+  color: var(--bus-ui);
+}
+.mix__name[data-bus='sfx'] {
+  color: var(--bus-sfx);
+}
+.mix__name[data-bus='music'] {
+  color: var(--bus-music);
+}
+.mix__value {
+  font-size: 0.68rem;
+  text-align: right;
+  color: var(--muted);
+}
+
+.legend {
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+.legend i {
+  font-style: normal;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.legend i::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  background: currentColor;
+}
+.legend .ui {
+  color: var(--bus-ui);
+}
+.legend .sfx {
+  color: var(--bus-sfx);
+}
+.legend .music {
+  color: var(--bus-music);
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Prose
+   --------------------------------------------------------------------------------------------- */
+
+.prose {
+  max-width: 66ch;
+}
+
+/*
+ * Two columns once there is room for two measures. A single 66-character column in a
+ * eleven-hundred-pixel field reads as a page that failed to fill rather than as a chosen measure,
+ * and a colophon is exactly the kind of text a specimen sheet has always set in columns.
+ */
+@media (min-width: 80rem) {
+  .prose {
+    max-width: none;
+    columns: 2;
+    column-gap: clamp(1.75rem, 3.5vw, 3.5rem);
+  }
+  .prose p {
+    break-inside: avoid;
+  }
+}
+.prose p {
+  margin: 0 0 0.85rem;
+  font-size: 0.79rem;
+  line-height: 1.68;
+}
+.prose p:last-child {
+  margin-bottom: 0;
+}
+.prose strong {
+  font-weight: 500;
+  color: var(--spot);
+}
+
+.rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.7rem;
+  max-width: 78ch;
+}
+.rules li {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr;
+  gap: 0.6rem;
+  font-size: 0.78rem;
+  line-height: 1.62;
+}
+.rules b {
+  font-family: var(--tech);
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--spot);
+  padding-top: 0.12rem;
+}
+
+.status {
+  font-size: 0.71rem;
+  color: var(--muted);
+  margin: 0.55rem 0 0;
+  min-height: 1.2em;
+}
+.status--busy {
+  color: var(--spot);
+}
