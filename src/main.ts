@@ -7,7 +7,7 @@
  * nothing anywhere else in the project reaches for an `AudioContext`.
  */
 
-import { startAnalytics, track } from './analytics.js';
+import { track } from './analytics.js';
 import { applyMixer, canClaimPlayback, onUnlockChange, unlock } from './audio/live.js';
 import { mountBench } from './ui/bench.js';
 import { mountFloor } from './ui/floor.js';
@@ -113,7 +113,6 @@ document.addEventListener('visibilitychange', () => {
 // bench, and the bench says so rather than leaving somebody wondering why a sound went quiet.
 applyMixer(state.floor.gains, state.floor.mutedBuses, state.floor.maxVoices, state.floor.maxPan);
 
-startAnalytics();
 
 bench.refresh();
 floor.refresh();
